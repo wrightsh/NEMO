@@ -7,7 +7,8 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.http import FileResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound
+from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from drf_excel.mixins import XLSXFileMixin
 from rest_framework import mixins, status, viewsets
@@ -553,6 +554,113 @@ class ReservationViewSet(ModelViewSet):
         "waived_by": key_filters,
         "note": string_filters,
     }
+
+
+class ToolReservationsICSViewSet(viewsets.GenericViewSet):
+    permission_classes = [] #Want google calendar to be able to access this endpoint
+    
+    def list(self, request, *args, **kwargs):
+        # Get user_id from query params
+        user_id = request.GET.get('user_id')
+        if not user_id:
+            return Response({'error': 'user_id parameter is required'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return Response({'error': 'user_id must be a valid integer'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Filter reservations from current date forward for specified user
+        current_date = timezone.now().date()
+        reservations = Reservation.objects.filter(
+            start__gte=current_date,
+            user_id=user_id
+        ).select_related('tool', 'project', 'user')
+        
+        # Generate ICS content
+        ics_content = self.generate_ics(reservations)
+        
+        response = HttpResponse(ics_content, content_type='text/calendar; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="reservations_{user_id}.ics"'
+        return response
+    
+    def generate_ics(self, reservations):
+        """Generate ICS calendar content from reservations"""
+
+        lines = [
+            'BEGIN:VCALENDAR',
+            'METHOD:PUBLISH',
+            'PRODID:-//NEMO//Reservations//EN',
+            'VERSION:2.0',
+            'CALSCALE:GREGORIAN',
+            f'X-WR-TIMEZONE:US-Eastern:{timezone.get_current_timezone_name()}'
+        ]
+        
+        for reservation in reservations:
+            # Format datetime for ICS (UTC format)
+            dtstart = reservation.start.strftime('%Y%m%dT%H%M%SZ')
+            dtend = reservation.end.strftime('%Y%m%dT%H%M%SZ')
+            dtstamp = timezone.now().strftime('%Y%m%dT%H%M%SZ')
+            dtcreated = reservation.creation_time.strftime('%Y%m%dT%H%M%SZ')
+            
+            # Generate unique ID for the event
+            uid = f"reservation-{reservation.id}@nemo"
+            
+            # Create summary (title)
+            if reservation.tool:
+                summary = f"{reservation.tool.name} ({reservation.user.first_name} {reservation.user.last_name})"
+                location = getattr(reservation.tool, '_location', '') or ''
+            else:
+                continue #Don't include area reservations
+            
+            # Create description
+            description_parts = []
+            if reservation.project:
+                description_parts.append(f"Project: {reservation.project.name}")
+            if reservation.tool:
+                description_parts.append(f"Tool: {reservation.tool.name}")
+            if hasattr(reservation, 'note') and reservation.note:
+                description_parts.append(f"Note: {reservation.note}")
+            
+            description = "\n".join(description_parts)
+            
+            status = "CONFIRMED"
+            if reservation.cancelled:
+                status = "CANCELLED"
+
+            # Add event to calendar
+            lines.extend([
+                'BEGIN:VEVENT',
+                f'UID:{uid}',
+                f'DTSTART:{dtstart}',
+                f'DTEND:{dtend}',
+                f'DTSTAMP:{dtstamp}',
+                f'CREATED:{dtcreated}',
+                f'SUMMARY:{self.escape_ics_text(summary)}',
+                f'DESCRIPTION:{self.escape_ics_text(description)}',
+                f'LOCATION:{self.escape_ics_text(location)}',
+                f'STATUS:{status}',
+                'TRANSP:OPAQUE',
+                'END:VEVENT'
+            ])
+        
+        lines.append('END:VCALENDAR')
+        return '\r\n'.join(lines)
+    
+    def escape_ics_text(self, text):
+        """Escape special characters for ICS format"""
+        if not text:
+            return ''
+        # Escape special characters according to RFC 5545
+        text = str(text)
+        text = text.replace('\\', '\\\\')
+        text = text.replace(',', '\\,')
+        text = text.replace(';', '\\;')
+        text = text.replace('\n', '\\n')
+        text = text.replace('\r', '\\r')
+        return text
 
 
 class ReservationQuestionsViewSet(ModelViewSet):
