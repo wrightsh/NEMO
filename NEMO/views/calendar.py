@@ -268,7 +268,7 @@ def reservation_event_feed(request, start, end):
     # Filter events that only have to do with the current user.
     personal_schedule = request.GET.get("personal_schedule")
     if personal_schedule:
-        events = events.filter(user=request.user)
+        events = events.filter(Q(user=request.user) | Q(invitee=request.user))
 
     dictionary = {
         "events": events,
