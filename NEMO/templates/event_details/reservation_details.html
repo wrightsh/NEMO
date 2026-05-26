@@ -49,6 +49,17 @@
         }
         ajax_post(url, {'project_id': project_id}, callback_success, [failure_dialog, callback_failure]);
     }
+
+    function change_reservation_invitee(url, invitee_id)
+    {
+        let failure_dialog = ajax_failure_callback("Unable to change reservation invitee");
+        function callback_failure(){
+            $('#reservation_invitee').show();
+            $('#reservation_change_invitee').hide();
+        }
+        ajax_post(url, {'invitee_id': invitee_id}, callback_success, [failure_dialog, callback_failure]);
+    }
+
         </script>
     {% endblock %}
 {% endif %}
@@ -157,6 +168,50 @@
         </div>
     </td>
 </tr>
+{% endif %}
+{% endif %}
+<tr>
+    {% if reservation.tool %}
+        <tr id="reservation_invitee">
+            <td style="vertical-align: middle;">Invitee:</td>
+            <td>
+                {% if reservation.invitee %}
+                    {{ reservation.invitee.get_full_name }}
+                {% else %}
+                    <em>None</em>
+                {% endif %}
+                {% if reservation_invitee_can_be_changed %}
+                    <span class="glyphicon glyphicon-pencil pull-right"
+                          title="Change the invitee"
+                          onclick="$('#reservation_invitee').hide();$('#reservation_change_invitee').show();"></span>
+                {% endif %}
+            </td>
+        </tr>
+        {% if reservation_invitee_can_be_changed %}
+            <tr id="reservation_change_invitee" style="display: none;">
+                <td style="vertical-align: middle;">
+                    <label for="change_invitee">Invitee:</label>
+                </td>
+                <td>
+                    <div class="input-group">
+                        <select id="change_invitee" name="invitee" aria-label="Reservation invitee" class="form-control">
+                            <option value="">None</option>
+                            {% for u in authorized_users %}
+                                <option value="{{ u.id }}"
+                                        {% if reservation.invitee and reservation.invitee.id == u.id %}selected{% endif %}>
+                                    {{ u.get_full_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <span class="input-group-btn">
+                            <button type="button" class="btn btn-success" data-dismiss="modal" onclick="{% if popup_view %}$('#dialog').one('hidden.bs.modal', function() {
+                            {% endif %}
+                            change_reservation_invitee('{% url 'change_reservation_invitee' reservation.id %}', $('#change_invitee').val()) {% if popup_view %}}){% endif %}
+                        ">Change invitee</button>
+                </span>
+            </div>
+        </td>
+    </tr>
 {% endif %}
 {% endif %}
 <tr>
@@ -323,8 +378,7 @@
             {% if reservation.user == user %}
                 <button type="button" class="btn btn-danger" data-dismiss="modal" onclick="{% if popup_view %}$('#dialog').one('hidden.bs.modal', function() {
                 {% endif %}
-                cancel_reservation('{% url 'cancel_reservation' reservation.id %}', 'Reservation {{ reservation.id }}') {% if popup_view %}})
-            {% endif %}
+                cancel_reservation('{% url 'cancel_reservation' reservation.id %}', 'Reservation {{ reservation.id }}') {% if popup_view %}}){% endif %}
             " title="Cancel this reservation">
             <i aria-hidden="true" class="glyphicon glyphicon-trash"></i> Cancel this reservation
         </button>

@@ -28,21 +28,23 @@ def reservation_details(request, reservation_id):
     authorized_users = []
     if reservation.tool:
         # Staff users
-        staff_users = User.objects.filter(is_active=True, is_staff=True)
+        # staff_users = User.objects.filter(is_active=True, is_staff=True)
         # Tool-specific staff
         tool_staff = reservation.tool.staff.filter(is_active=True)
         # Qualified users
         qualified_users = reservation.tool.user_set.filter(is_active=True)
         # Combine and remove duplicates
-        authorized_users = list(set(staff_users) | set(tool_staff) | set(qualified_users))
+        authorized_users = list(set(tool_staff) | set(qualified_users))
         authorized_users.sort(key=lambda x: x.get_full_name())
 
     # Check if invitee can be changed
     reservation_invitee_can_be_changed = (
-        reservation.tool and
-        reservation.has_not_ended() and 
-        reservation.has_not_started() and
-        (request.user.is_staff or request.user.is_staff_on_tool(reservation.tool) or request.user == reservation.user)
+        reservation.tool
+        and reservation.has_not_ended()
+        and reservation.has_not_started()
+        and (
+            request.user.is_staff or request.user.is_staff_on_tool(reservation.tool) or request.user == reservation.user
+        )
     )
 
     template_data = {

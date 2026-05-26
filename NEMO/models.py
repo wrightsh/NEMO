@@ -3159,6 +3159,14 @@ pre_delete.connect(pre_delete_entity, sender=User)
 class Reservation(BaseModel, CalendarDisplayMixin, BillableItemMixin):
     user = models.ForeignKey(User, related_name="reservation_user", on_delete=models.CASCADE)
     creator = models.ForeignKey(User, related_name="reservation_creator", on_delete=models.CASCADE)
+    invitee = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        related_name="reservation_invitee",
+        on_delete=models.SET_NULL,
+        help_text="An optional invitee who is staff or authorized on the tool",
+    )
     creation_time = models.DateTimeField(default=timezone.now)
     tool = models.ForeignKey(Tool, null=True, blank=True, on_delete=models.CASCADE)
     area = TreeForeignKey(Area, null=True, blank=True, on_delete=models.CASCADE)
@@ -3330,6 +3338,16 @@ class Reservation(BaseModel, CalendarDisplayMixin, BillableItemMixin):
         errors = validate_waive_information(self)
         if self.end and self.start and self.end < self.start:
             raise ValidationError({"end": "The end must be on or after the start"})
+
+        # Validate invitee
+        if self.invitee and self.tool:
+            if not (
+                self.invitee.is_staff
+                or self.invitee in self.tool.user_set.all()
+                or self.invitee.is_staff_on_tool(self.tool)
+            ):
+                errors["invitee"] = "The invitee must be staff or authorized on this tool"
+
         if errors:
             raise ValidationError(errors)
 

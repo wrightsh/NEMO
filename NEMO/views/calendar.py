@@ -987,6 +987,44 @@ def change_reservation_project(request, reservation_id):
     return HttpResponse()
 
 
+@login_required
+@require_POST
+def change_reservation_invitee(request, reservation_id):
+    """Change the reservation invitee for a user."""
+    reservation = get_object_or_404(Reservation, id=reservation_id)
+
+    # Check permissions
+    if not (
+        (request.user.is_staff or request.user.is_staff_on_tool(reservation.tool) or request.user == reservation.user)
+        and reservation.has_not_ended()
+        and reservation.has_not_started()
+    ):
+        return HttpResponseForbidden("You are not authorized to change the invitee for this reservation")
+
+    invitee_id = request.POST.get("invitee_id")
+
+    if invitee_id:
+        invitee = get_object_or_404(User, id=invitee_id)
+
+        # Validate that invitee is staff or authorized on the tool
+        if reservation.tool:
+            if not (
+                invitee.is_staff
+                or invitee in reservation.tool.user_set.all()
+                or invitee.is_staff_on_tool(reservation.tool)
+            ):
+                return HttpResponseBadRequest("The invitee must be staff or authorized on this tool")
+
+        reservation.invitee = invitee
+
+    else:
+        # Remove invitee
+        reservation.invitee = None
+
+    reservation.save()
+    return HttpResponse()
+
+
 @staff_member_or_tool_staff_required
 @require_GET
 def proxy_reservation(request):

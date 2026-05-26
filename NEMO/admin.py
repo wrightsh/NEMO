@@ -899,6 +899,7 @@ class ReservationAdmin(ObjPermissionAdminMixin, ModelAdminRedirectMixin, admin.M
         "id",
         "user",
         "creator",
+        "invitee",
         "tool",
         "area",
         "project",
@@ -926,7 +927,7 @@ class ReservationAdmin(ObjPermissionAdminMixin, ModelAdminRedirectMixin, admin.M
     )
     date_hierarchy = "start"
     inlines = [ConfigurationOptionInline]
-    autocomplete_fields = ["user", "creator", "tool", "project", "cancelled_by", "validated_by", "waived_by"]
+    autocomplete_fields = ["user", "creator", "invitee", "tool", "project", "cancelled_by", "validated_by", "waived_by"]
     actions = [waive_selected_charges]
 
 

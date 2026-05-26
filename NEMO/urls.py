@@ -352,6 +352,11 @@ urlpatterns += [
         calendar.change_reservation_project,
         name="change_reservation_project",
     ),
+    path(
+        "change_reservation_invitee/<int:reservation_id>/",
+        calendar.change_reservation_invitee,
+        name="change_reservation_invitee",
+    ),
     path("proxy_reservation/", calendar.proxy_reservation, name="proxy_reservation"),
     path("tool_calendar_info/<int:tool_id>/", calendar.get_selected_tool_calendar_info, name="tool_calendar_info"),
     path(

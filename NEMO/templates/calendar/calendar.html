@@ -610,6 +610,14 @@ function change_reservation_project(url, project_id)
 	ajax_post(url, {'project_id': project_id}, refresh_calendar_and_sidebar, [failure_dialog, refresh_calendar_and_sidebar]);
 }
 
+function change_reservation_invitee(url, invitee_id)
+{
+    let failure_dialog = ajax_failure_callback("Unable to change reservation invitee");
+	  ajax_post(url, {'invitee_id': invitee_id}, refresh_calendar_and_sidebar, [failure_dialog, refresh_calendar_and_sidebar]);
+}
+
+
+
 function on_browser_resize()
 {
 	$('#calendar').fullCalendar('option', 'height', $("#calendar").height());
