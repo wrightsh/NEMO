@@ -2267,7 +2267,7 @@ class Tool(SerializationByNameModel):
         return tool_questions
 
     def get_usage_questions(
-        self, questions_type: ToolUsageQuestionType, user: User = None, project: Project = None
+        self, questions_type: ToolUsageQuestionType, user: User = None, project: Project = None, reservation: Reservation = None
     ) -> MultiDynamicForms:
         from NEMO.widgets.dynamic_form import MultiDynamicForms
         from NEMO.views.customization import ToolControlCustomization
@@ -2283,6 +2283,11 @@ class Tool(SerializationByNameModel):
                 user = current_usage.user
             elif not project or not user:
                 return None
+        else:
+            # Pre-usage questions: check if we should prefill with reservation data
+            if reservation and ToolControlCustomization.get_bool("tool_control_prefill_pre_usage_with_reservation_answers"):
+                initial_data = reservation.question_data_json()
+        
         if project and user:
             return MultiDynamicForms(
                 self._get_usage_questions(questions_type, user, project), initial_data=initial_data
