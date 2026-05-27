@@ -499,14 +499,21 @@ class DefaultNEMOPolicy(BaseNEMOPolicy):
         # Staff may break this rule.
         # An explicit policy override allows this rule to be broken.
         if new_reservation.tool and new_reservation.tool not in user.qualifications.all():
-            if user == user_creating_reservation:
-                policy_problems.append(
-                    "You are not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
-                )
-            else:
-                policy_problems.append(
-                    f"{str(user)} is not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
-                )
+            # Check if there's an invitee who is qualified
+            invitee_qualified = (
+                new_reservation.invitee 
+                and new_reservation.invitee in new_reservation.tool.user_set.all()
+            )
+
+            if not invitee_qualified:
+                if user == user_creating_reservation:
+                    policy_problems.append(
+                        "You are not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
+                    )
+                else:
+                    policy_problems.append(
+                        f"{str(user)} is not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
+                    )
 
         # The user must be authorized on the area in question at the start and end times of the reservation
         # in order to create, move, or resize a reservation.
