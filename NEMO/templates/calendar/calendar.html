@@ -410,6 +410,11 @@ function create(start, end, jsEvent, view)
 		"item_id": item.data('item-id'),
 		"csrfmiddlewaretoken": "{{ csrf_token }}"
 	};
+	{# Add invitee if one was selected #}
+	let invitee_id = $('#invitee_select').val();
+	if (invitee_id) {
+		event_properties['invitee_id'] = invitee_id;
+	}
 	{# If the user is trying to create a scheduled outage, then put that in the event_properties. #}
 	{# Otherwise, create a reservation (which is the normal case). #}
 	let url;

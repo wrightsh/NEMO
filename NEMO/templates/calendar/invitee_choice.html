@@ -1,0 +1,38 @@
+<div class="modal-dialog">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4 class="modal-title">Select a Qualified User</h4>
+        </div>
+        <div class="modal-body">
+            <p>You are not qualified to use the {{ tool.name }}. Please select a qualified user to invite to this reservation:</p>
+            <form id="invitee_form">
+                <div class="form-group">
+                    <label for="invitee_select">Qualified User:</label>
+                    <select id="invitee_select" name="invitee_id" class="form-control" required>
+                        <option value="">-- Select a qualified user --</option>
+                        {% for qualified_user in qualified_users %}
+                            <option value="{{ qualified_user.id }}">{{ qualified_user.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal" onclick="$('#dialog_cancelled').val('true')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="submit_invitee_choice()">Continue</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function submit_invitee_choice() {
+    let invitee_id = $('#invitee_select').val();
+    if (!invitee_id) {
+        alert('Please select a qualified user.');
+        return;
+    }
+    $('#dialog').modal('hide');
+    // The invitee_id will be included in the next submission
+    return true;
+}
+</script>

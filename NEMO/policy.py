@@ -187,7 +187,37 @@ class DefaultNEMOPolicy(BaseNEMOPolicy):
         # The user must be qualified to use the tool itself, or the parent tool in case of an alternate tool.
         tool_to_check_qualifications = tool.parent_tool if tool.is_child_tool() else tool
         if tool_to_check_qualifications not in operator.qualifications.all() and not operator.is_staff_on_tool(tool):
-            return HttpResponseBadRequest("You are not qualified to use this tool.")
+            # Check if user is trying to create a reservation with an invitee
+            if not request.POST.get("invitee_id"):
+                # User is not qualified and hasn't selected an invitee yet
+                # Get list of qualified users who are staff or authorized on the tool
+                staff_users = User.objects.filter(is_active=True, is_staff=True)
+                tool_staff = tool.staff.filter(is_active=True)
+                authorized_users = tool.user_set.filter(is_active=True)
+                qualified_users = list(set(staff_users) | set(tool_staff) | set(authorized_users))
+                qualified_users.sort(key=lambda x: x.get_full_name())
+            
+                return render(
+                    request,
+                    "calendar/invitee_choice.html",
+                    {
+                        "qualified_users": qualified_users,
+                        "tool": tool,
+                    },
+                )
+            else:
+                # User has selected an invitee, validate it
+                try:
+                    invitee = User.objects.get(id=request.POST["invitee_id"], is_active=True)
+                    if not (
+                        invitee.is_staff 
+                        or invitee in tool.user_set.all() 
+                        or invitee.is_staff_on_tool(tool)
+                    ):
+                        return HttpResponseBadRequest("The selected invitee is not qualified to use this tool.")
+                    new_reservation.invitee = invitee
+                except User.DoesNotExist:
+                    return HttpResponseBadRequest("Selected invitee not found.")
 
         # Only staff members can operate a tool on behalf of another user.
         if (user and operator.pk != user.pk) and not operator.is_staff_on_tool(tool):
@@ -508,11 +538,11 @@ class DefaultNEMOPolicy(BaseNEMOPolicy):
             if not invitee_qualified:
                 if user == user_creating_reservation:
                     policy_problems.append(
-                        "You are not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
+                        "You are not qualified to use this tool. Creating, moving, and resizing reservations is forbidden unless you invite a qualified user."
                     )
                 else:
                     policy_problems.append(
-                        f"{str(user)} is not qualified to use this tool. Creating, moving, and resizing reservations is forbidden."
+                        f"{str(user)} is not qualified to use this tool. Creating, moving, and resizing reservations is forbidden unless a qualified user is invited."
                     )
 
         # The user must be authorized on the area in question at the start and end times of the reservation
