@@ -450,6 +450,39 @@ def create_item_reservation(request, current_user: User, start, end, item_type: 
     new_reservation.short_notice = (
         item.determine_insufficient_notice(start) if item_type == ReservationItemType.TOOL else False
     )
+
+    # The user must be qualified to use the tool itself, or the parent tool in case of an alternate tool.
+    if item_type == ReservationItemType.TOOL:
+        tool_to_check_qualifications = item.parent_tool if item.is_child_tool() else item
+        if tool_to_check_qualifications not in user.qualifications.all() and not user.is_staff_on_tool(item):
+            # Check if user is trying to create a reservation with an invitee
+            if not request.POST.get("invitee_id"):
+                # User is not qualified and hasn't selected an invitee yet
+                # Get list of qualified users who are staff or authorized on the tool
+                staff_users = User.objects.filter(is_active=True, is_staff=True)
+                tool_staff = item.staff.filter(is_active=True)
+                authorized_users = item.user_set.filter(is_active=True)
+                qualified_users = list(set(staff_users) | set(tool_staff) | set(authorized_users))
+                qualified_users.sort(key=lambda x: x.get_full_name())
+
+                return render(
+                    request,
+                    "calendar/invitee_choice.html",
+                    {
+                        "qualified_users": qualified_users,
+                        "tool": item,
+                    },
+                )
+            else:
+                # User has selected an invitee, validate it
+                try:
+                    invitee = User.objects.get(id=request.POST["invitee_id"], is_active=True)
+                    if not (invitee.is_staff or invitee in item.user_set.all() or invitee.is_staff_on_tool(item)):
+                        return HttpResponseBadRequest("The selected invitee is not qualified to use this tool.")
+                    new_reservation.invitee = invitee
+                except User.DoesNotExist:
+                    return HttpResponseBadRequest("Selected invitee not found.")
+
     policy_problems, overridable = policy.check_to_save_reservation(
         cancelled_reservation=None,
         new_reservation=new_reservation,
