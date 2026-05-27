@@ -5,24 +5,25 @@
         </div>
         <div class="modal-body">
             <p>You are not qualified to use the {{ tool.name }}. Please select a qualified user to invite to this reservation:</p>
-            <form id="invitee_form">
-                <div class="form-group">
-                    <label for="invitee_select">Qualified User:</label>
-                    <select id="invitee_select" name="invitee_id" class="form-control" required>
-                        <option value="">-- Select a qualified user --</option>
-                        {% for qualified_user in qualified_users %}
-                            <option value="{{ qualified_user.id }}">{{ qualified_user.get_full_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </form>
+            <div class="form-group">
+                <label for="invitee_select">Qualified User:</label>
+                <select id="invitee_select" name="invitee_id" class="form-control" required>
+                    <option value="">-- Select a qualified user --</option>
+                    {% for qualified_user in qualified_users %}
+                        <option value="{{ qualified_user.id }}">{{ qualified_user.get_full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal" onclick="$('#dialog_cancelled').val('true')">Cancel</button>
+            <button type="button" class="btn btn-default" data-dismiss="modal" onclick="$('#dialog_cancelled').val('true'); unselect_and_refresh();">Cancel</button>
             <button type="button" class="btn btn-primary" onclick="submit_invitee_choice()">Continue</button>
         </div>
     </div>
 </div>
+
+<input type="hidden" id="dialog_cancelled" value="false">
+<form id="additional_event_parameters"></form>
 
 <script>
 function submit_invitee_choice() {
@@ -31,8 +32,14 @@ function submit_invitee_choice() {
         alert('Please select a qualified user.');
         return;
     }
+    
+    // Add invitee_id as a hidden input to the additional parameters form
+    $('#additional_event_parameters').append('<input type="hidden" name="invitee_id" value="' + invitee_id + '">');
+    
+    // Mark that we want to continue (not cancel)
+    $('#dialog_cancelled').val('false');
+    
+    // Close dialog - the event_creation_success_callback will handle the rest
     $('#dialog').modal('hide');
-    // The invitee_id will be included in the next submission
-    return true;
 }
 </script>
