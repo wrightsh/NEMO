@@ -440,19 +440,8 @@ def enable_tool(request, tool_id, user_id, project_id, staff_charge):
     new_usage_event.tool = tool
     new_usage_event.note = request.POST.get("note") or None
 
-    # Get the current reservation for this user and tool to prefill pre-usage questions
-    current_reservation = Reservation.objects.filter(
-        start__lte=timezone.now(),
-        end__gte=timezone.now(),
-        cancelled=False,
-        missed=False,
-        shortened=False,
-        user=user,
-        tool=tool,
-    ).first()
-
     # Collect pre-usage questions and validate them
-    dynamic_forms = tool.get_usage_questions(ToolUsageQuestionType.PRE, user, project, reservation=current_reservation)
+    dynamic_forms = tool.get_usage_questions(ToolUsageQuestionType.PRE, user, project)
 
     try:
         new_usage_event.pre_run_data = dynamic_forms.extract(request)
@@ -795,8 +784,23 @@ def tool_usage_questions(
     customer = get_object_or_404(User, pk=user_id)
     question_type = ToolUsageQuestionType(question_type)
     virtual_inputs = virtual_inputs == "true"
+
+    # Get the current reservation for pre-usage questions to prefill
+    current_reservation = None
+    if question_type == ToolUsageQuestionType.PRE:
+        current_reservation = Reservation.objects.filter(
+            start__lte=timezone.now(),
+            end__gte=timezone.now(),
+            cancelled=False,
+            missed=False,
+            shortened=False,
+            user=customer,
+            tool=tool,
+        ).first()
     return HttpResponse(
-        tool.get_usage_questions(question_type, customer, project).render(virtual_inputs=virtual_inputs)
+        tool.get_usage_questions(question_type, customer, project, reservation=current_reservation).render(
+            virtual_inputs=virtual_inputs
+        )
     )
 
 
