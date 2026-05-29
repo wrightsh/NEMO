@@ -2292,7 +2292,6 @@ class Tool(SerializationByNameModel):
             if reservation and ToolControlCustomization.get_bool(
                 "tool_control_prefill_pre_usage_with_reservation_answers"
             ):
-                print("test")
                 initial_data = reservation.question_data_json()
 
         if project and user:
